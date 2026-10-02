@@ -171,7 +171,7 @@ func GenNatGwBgpSpeakerContainer(speakerParams kubeovnv1.VpcBgpSpeaker, speakerI
 		args = append(args, "--graceful-restart")
 	}
 
-	if speakerParams.HoldTime == (metav1.Duration{}) { // Hold time
+	if speakerParams.HoldTime != (metav1.Duration{}) { // Hold time
 		args = append(args, "--holdtime="+speakerParams.HoldTime.Duration.String())
 	}
 
@@ -183,8 +183,8 @@ func GenNatGwBgpSpeakerContainer(speakerParams kubeovnv1.VpcBgpSpeaker, speakerI
 		return nil, errors.New("remote ASN not set, but must be non-zero value")
 	}
 
-	args = append(args, fmt.Sprintf("--cluster-as=%d", speakerParams.RemoteASN))
-	args = append(args, fmt.Sprintf("--neighbor-as=%d", speakerParams.ASN))
+	args = append(args, fmt.Sprintf("--cluster-as=%d", speakerParams.ASN))
+	args = append(args, fmt.Sprintf("--neighbor-as=%d", speakerParams.RemoteASN))
 
 	if len(speakerParams.Neighbors) == 0 {
 		return nil, errors.New("no BGP neighbors specified")
@@ -195,9 +195,9 @@ func GenNatGwBgpSpeakerContainer(speakerParams kubeovnv1.VpcBgpSpeaker, speakerI
 	for _, neighbor := range speakerParams.Neighbors {
 		switch CheckProtocol(neighbor) {
 		case kubeovnv1.ProtocolIPv4:
-			neighIPv6 = append(neighIPv6, neighbor)
-		case kubeovnv1.ProtocolIPv6:
 			neighIPv4 = append(neighIPv4, neighbor)
+		case kubeovnv1.ProtocolIPv6:
+			neighIPv6 = append(neighIPv6, neighbor)
 		default:
 			return nil, fmt.Errorf("unsupported protocol for peer %s", neighbor)
 		}
