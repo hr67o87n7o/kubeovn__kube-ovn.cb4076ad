@@ -707,7 +707,7 @@ func (c *OVNNbClient) LoadBalancerUpdateIPPortMapping(lbName, vipEndpoint string
 				// If this IP is not in the new mappings, check if it should be deleted
 				if !newBackendIPs[cleanKey] {
 					// Use the existing isBackendIPStillUsed helper to check all VIPs
-					if c.isBackendIPStillUsed(lb, vipEndpoint, cleanKey) {
+					if !c.isBackendIPStillUsed(lb, vipEndpoint, cleanKey) {
 						toDelete[mappingKey] = mappingValue
 					}
 				}
@@ -730,9 +730,9 @@ func (c *OVNNbClient) LoadBalancerUpdateIPPortMapping(lbName, vipEndpoint string
 						existingLSP = lsp
 						found = true
 					} else {
-						// Try to find the IP under a matching key form
+						// Try to find the IP with normalized key (check both bracketed/unbracketed forms)
 						for mappingKey, mappingValue := range lb.IPPortMappings {
-							if mappingKey == cleanIP {
+							if strings.Trim(mappingKey, "[]") == cleanIP {
 								existingKey = mappingKey
 								existingLSP = mappingValue
 								found = true
@@ -746,9 +746,9 @@ func (c *OVNNbClient) LoadBalancerUpdateIPPortMapping(lbName, vipEndpoint string
 							// Mapping is already correct, skip
 							continue
 						}
-						// Different value, refresh the mapping entry
+						// Different value, need to delete old and insert new
 						toDelete[existingKey] = existingLSP
-						toInsert[ip] = existingLSP
+						toInsert[ip] = newLSP
 					} else {
 						// New mapping
 						toInsert[ip] = newLSP
