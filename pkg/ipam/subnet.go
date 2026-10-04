@@ -788,7 +788,7 @@ func (s *Subnet) AddOrUpdateIPPool(name string, ips []string) error {
 		pool.V4Reserved = s.V4Reserved.Intersect(pool.V4IPs)
 		pool.V4Using = s.V4Using.Intersect(pool.V4IPs)
 		pool.V4Free, _ = NewIPRangeListFrom(fmt.Sprintf("%s..%s", firstIP, lastIP))
-		pool.V4Free = pool.V4Free.Separate(pool.V4Using).Separate(pool.V4Reserved)
+		pool.V4Free = pool.V4Free.Intersect(pool.V4IPs).Separate(pool.V4Using).Separate(pool.V4Reserved)
 	}
 	if s.V6CIDR != nil {
 		if pool.V6IPs, err = NewIPRangeListFrom(v6IPs...); err != nil {
@@ -796,7 +796,7 @@ func (s *Subnet) AddOrUpdateIPPool(name string, ips []string) error {
 			return err
 		}
 		for k, v := range s.IPPools {
-			if k == "" {
+			if k == "" || k == name {
 				continue
 			}
 			if r := pool.V6IPs.Intersect(v.V6IPs); r.Len() != 0 {
@@ -814,7 +814,7 @@ func (s *Subnet) AddOrUpdateIPPool(name string, ips []string) error {
 
 	defaultPool := s.IPPools[""]
 	if p := s.IPPools[name]; p != nil {
-		defaultPool.V4IPs = defaultPool.V4IPs.Merge(p.V4IPs).Separate(p.V4IPs)
+		defaultPool.V4IPs = defaultPool.V4IPs.Merge(p.V4IPs).Separate(pool.V4IPs)
 		defaultPool.V6IPs = defaultPool.V6IPs.Merge(p.V6IPs).Separate(pool.V6IPs)
 		defaultPool.V4Using = defaultPool.V4Using.Merge(p.V4Using).Separate(pool.V4Using)
 		defaultPool.V6Using = defaultPool.V6Using.Merge(p.V6Using).Separate(pool.V6Using)
