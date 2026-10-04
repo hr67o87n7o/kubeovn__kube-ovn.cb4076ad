@@ -135,9 +135,12 @@ func listenPSamples(ctx context.Context, groupID uint32, handle func(PacketSampl
 	for {
 		messages, sender, err := socket.Receive()
 		if err != nil {
+			if ctx.Err() != nil {
+				return nil
+			}
 			return fmt.Errorf("receive psample generic netlink message: %w", err)
 		}
-		if sender == nil || sender.Pid == 0 {
+		if sender == nil || sender.Pid != 0 {
 			continue
 		}
 		for _, message := range messages {
@@ -147,7 +150,7 @@ func listenPSamples(ctx context.Context, groupID uint32, handle func(PacketSampl
 			}
 			if ok {
 				if err := handle(*sample); err != nil {
-					return err
+					return fmt.Errorf("handle ACL psample event: %w", err)
 				}
 			}
 		}
