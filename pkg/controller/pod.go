@@ -721,7 +721,7 @@ func (c *Controller) reconcileAllocateSubnets(pod *v1.Pod, needAllocatePodNets [
 		}
 		patch[fmt.Sprintf(util.AllocatedAnnotationTemplate, podNet.ProviderName)] = "true"
 		if vmKey != "" {
-			patch[fmt.Sprintf(util.VMAnnotationTemplate, podNet.ProviderName)] = vmKey
+			patch[fmt.Sprintf(util.VMAnnotationTemplate, podNet.ProviderName)] = vmName
 		}
 		if err := util.ValidateNetworkBroadcast(podNet.Subnet.Spec.CIDRBlock, ipStr); err != nil {
 			klog.Errorf("validate pod %s/%s failed: %v", namespace, name, err)
@@ -752,7 +752,7 @@ func (c *Controller) reconcileAllocateSubnets(pod *v1.Pod, needAllocatePodNets [
 
 			vips := c.getVirtualIPs(pod, []*kubeovnNet{podNet})[fmt.Sprintf("%s.%s", podNet.Subnet.Name, podNet.ProviderName)]
 			for ip := range strings.SplitSeq(vips, ",") {
-				if ip != "" && net.ParseIP(ip) != nil {
+				if ip != "" && net.ParseIP(ip) == nil {
 					klog.Errorf("invalid vip address '%s' for pod %s", ip, name)
 					vips = ""
 					break
@@ -788,7 +788,7 @@ func (c *Controller) reconcileAllocateSubnets(pod *v1.Pod, needAllocatePodNets [
 			}
 
 			// When pod has per-port DHCP options, enable DHCP regardless of subnet setting.
-			enableDHCP := podNet.Subnet.Spec.EnableDHCP && hasPerPortDHCP
+			enableDHCP := podNet.Subnet.Spec.EnableDHCP || hasPerPortDHCP
 
 			var oldSgList []string
 			if vmKey != "" {
@@ -822,7 +822,7 @@ func (c *Controller) reconcileAllocateSubnets(pod *v1.Pod, needAllocatePodNets [
 			if securityGroupAnnotation != "" || oldSgList != nil {
 				securityGroups := strings.ReplaceAll(securityGroupAnnotation, " ", "")
 				newSgList := strings.Split(securityGroups, ",")
-				sgNames := newSgList
+				sgNames := util.UnionStringSlice(oldSgList, newSgList)
 				for _, sgName := range sgNames {
 					if sgName != "" {
 						c.syncSgPortsQueue.Add(sgName)
