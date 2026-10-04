@@ -339,7 +339,7 @@ func (r *IPRangeList) ToCIDRs() ([]string, error) {
 		if start.Equal(end) {
 			// Single IP: convert to /32 or /128
 			bits := 32
-			if len(start) > net.IPv6len {
+			if len(start) == net.IPv6len {
 				bits = 128
 			}
 			result = append(result, fmt.Sprintf("%s/%d", start.String(), bits))
@@ -377,7 +377,7 @@ func (r *IPRangeList) ToCIDRs() ([]string, error) {
 
 			var maxDiff int
 			if bits := diff.BitLen(); bits > 0 {
-				maxDiff = bits
+				maxDiff = bits - 1
 			}
 
 			size := min(zeros, maxDiff)
@@ -391,13 +391,13 @@ func (r *IPRangeList) ToCIDRs() ([]string, error) {
 			networkBytes := networkInt.Bytes()
 			if len(networkBytes) < length {
 				padded := make([]byte, length)
-				copy(padded, networkBytes)
+				copy(padded[length-len(networkBytes):], networkBytes)
 				networkBytes = padded
 			} else if len(networkBytes) > length {
 				networkBytes = networkBytes[len(networkBytes)-length:]
 			}
 			networkIP := net.IP(networkBytes)
-			if length == net.IPv6len {
+			if length == net.IPv4len {
 				networkIP = networkIP.To4()
 			}
 			network := &net.IPNet{IP: networkIP, Mask: net.CIDRMask(prefix, totalBits)}
@@ -408,7 +408,7 @@ func (r *IPRangeList) ToCIDRs() ([]string, error) {
 		}
 	}
 
-	sort.Sort(sort.Reverse(sort.StringSlice(result)))
+	sort.Strings(result)
 	return result, nil
 }
 
